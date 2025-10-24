@@ -1,0 +1,113 @@
+-- =============================
+-- Medidas avanzadas de análisis
+-- Tablas base: presupuesto_col, ejecucion, DimPeriodo, DimTipoGasto, DimEquipo
+-- =============================
+
+-- Parámetros (ajustables). Para hacerlo dinámico, puede crear parámetros What-If y reemplazar estas constantes.
+_UmbralSubejecucion = 0.9
+_UmbralSobrejecucion = 1.1
+
+-- 4) Indicador de Cumplimiento
+Cumplimiento % = 
+    VAR p = [Monto Presupuestado]
+    RETURN IF(p = 0 || ISBLANK(p), BLANK(), DIVIDE([Monto Ejecutado], p))
+
+Cumplimiento % (Año) = 
+    VAR p = [Monto Presupuestado (Año)]
+    RETURN IF(p = 0 || ISBLANK(p), BLANK(), DIVIDE([Monto Ejecutado (Año)], p))
+
+Cumplimiento KPI = 
+    VAR c = [Cumplimiento %]
+    VAR low = [_UmbralSubejecucion]
+    VAR high = [_UmbralSobrejecucion]
+    RETURN 
+        IF(ISBLANK(c), BLANK(),
+            SWITCH(TRUE(),
+                c < low, "Subejecución (<" & FORMAT(low, "0%") & ")",
+                c > high, "Sobre-ejecución (>" & FORMAT(high, "0%") & ")",
+                "En línea"
+            )
+        )
+
+-- Códigos y colores para formato condicional
+Alerta Código = 
+    VAR c = [Cumplimiento %]
+    VAR low = [_UmbralSubejecucion]
+    VAR high = [_UmbralSobrejecucion]
+    RETURN IF(ISBLANK(c), BLANK(), IF(c < low, -1, IF(c > high, 1, 0)))
+
+Alerta Color = 
+    SWITCH([Alerta Código],
+        -1, "#F39C12",   -- Naranja: subejecución
+         1, "#E74C3C",   -- Rojo: sobre-ejecución
+         0, "#27AE60",   -- Verde: en línea
+        "#95A5A6"        -- Gris por defecto
+    )
+
+Alerta Tooltip = 
+    VAR c = [Cumplimiento %]
+    RETURN 
+        IF( ISBLANK(c), BLANK(),
+            "Cumplimiento: " & FORMAT(c, "0.0%") &
+            "\nEjecutado: " & FORMAT([Monto Ejecutado], "$ #,0") &
+            "\nPresupuestado: " & FORMAT([Monto Presupuestado], "$ #,0") &
+            "\nVariación: " & FORMAT([Variación], "$ #,0")
+        )
+
+-- 5) Comportamiento por Tipo de gasto (participación)
+Ejecutado % del total (Tipo) = 
+    DIVIDE(
+        [Monto Ejecutado],
+        CALCULATE([Monto Ejecutado], ALLSELECTED(DimTipoGasto[Tipo de gasto]))
+    )
+
+Presupuestado % del total (Tipo) = 
+    DIVIDE(
+        [Monto Presupuestado],
+        CALCULATE([Monto Presupuestado], ALLSELECTED(DimTipoGasto[Tipo de gasto]))
+    )
+
+-- 6) Alertas mensuales (usar en matriz por Mes x Equipo y/o Tipo de gasto)
+Mostrar solo alertas = 
+    VAR code = [Alerta Código]
+    RETURN IF( ISBLANK(code), BLANK(), IF(code <> 0, 1, 0) )
+
+-- 7) Comparación entre equipos
+Cumplimiento Índice (cercanía a 100%) = 
+    VAR c = [Cumplimiento %]
+    RETURN IF(ISBLANK(c), BLANK(), 1 - ABS(c - 1))
+
+Equipo con mejor ejecución = 
+    VAR T = ADDCOLUMNS(
+        VALUES(DimEquipo[Equipo]),
+        "Indice", CALCULATE([Cumplimiento Índice (cercanía a 100%)])
+    )
+    RETURN CONCATENATEX( TOPN(1, T, [Indice], DESC), DimEquipo[Equipo], ", ")
+
+Brecha Cumplimiento % (entre equipos) = 
+    VAR t = ADDCOLUMNS(VALUES(DimEquipo[Equipo]), "c", CALCULATE([Cumplimiento %]))
+    VAR maxc = MAXX(t, [c])
+    VAR minc = MINX(t, [c])
+    RETURN IF( ISBLANK(maxc) || ISBLANK(minc), BLANK(), maxc - minc )
+
+-- 8) Métricas adicionales
+-- A) Ejecución acumulada YTD
+Monto Presupuestado YTD = CALCULATE([Monto Presupuestado], DATESYTD(DimPeriodo[Periodo]))
+Monto Ejecutado YTD = CALCULATE([Monto Ejecutado], DATESYTD(DimPeriodo[Periodo]))
+Cumplimiento % YTD = DIVIDE([Monto Ejecutado YTD], [Monto Presupuestado YTD])
+Brecha % YTD = [Cumplimiento % YTD] - 1
+Variación YTD = [Monto Ejecutado YTD] - [Monto Presupuestado YTD]
+
+-- B) Volatilidad del cumplimiento (desviación estándar mensual)
+Volatilidad Cumplimiento (STDEV) = 
+VAR T = 
+    SUMMARIZE(
+        DimPeriodo,
+        DimPeriodo[Año], DimPeriodo[MesNumero],
+        "val", [Cumplimiento %]
+    )
+RETURN STDEVX.P(T, [val])
+
+-- Utilidades de formato
+Cumplimiento % (texto) = FORMAT([Cumplimiento %], "0.0%")
+Cumplimiento % YTD (texto) = FORMAT([Cumplimiento % YTD], "0.0%")

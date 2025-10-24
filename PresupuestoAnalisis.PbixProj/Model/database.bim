@@ -1,0 +1,242 @@
+{
+  "name": "PresupuestoAnalisis",
+  "compatibilityLevel": 1550,
+  "model": {
+    "culture": "es-CO",
+    "defaultPowerBIDataSourceVersion": "powerBI_V3",
+    "tables": [
+      {
+        "name": "presupuesto_col",
+        "columns": [
+          {
+            "name": "Tipo de gasto",
+            "dataType": "string"
+          },
+          {
+            "name": "Mes",
+            "dataType": "string"
+          },
+          {
+            "name": "MesNumero",
+            "dataType": "int64"
+          },
+          {
+            "name": "Año",
+            "dataType": "int64"
+          },
+          {
+            "name": "Equipo",
+            "dataType": "string"
+          },
+          {
+            "name": "Periodo",
+            "dataType": "dateTime"
+          },
+          {
+            "name": "Monto Presupuestado",
+            "dataType": "double"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "presupuesto_col",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": "let Source = presupuesto_col in Source"
+            }
+          }
+        ]
+      },
+      {
+        "name": "ejecucion",
+        "columns": [
+          {
+            "name": "Tipo de gasto",
+            "dataType": "string"
+          },
+          {
+            "name": "Mes",
+            "dataType": "string"
+          },
+          {
+            "name": "MesNumero",
+            "dataType": "int64"
+          },
+          {
+            "name": "Año",
+            "dataType": "int64"
+          },
+          {
+            "name": "Equipo",
+            "dataType": "string"
+          },
+          {
+            "name": "Periodo",
+            "dataType": "dateTime"
+          },
+          {
+            "name": "Fe.contabilización",
+            "dataType": "dateTime"
+          },
+          {
+            "name": "Monto Ejecutado",
+            "dataType": "double"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "ejecucion",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": "let Source = ejecucion in Source"
+            }
+          }
+        ]
+      },
+      {
+        "name": "DimPeriodo",
+        "columns": [
+          {
+            "name": "Periodo",
+            "dataType": "dateTime"
+          },
+          {
+            "name": "Año",
+            "dataType": "int64"
+          },
+          {
+            "name": "MesNumero",
+            "dataType": "int64"
+          },
+          {
+            "name": "Mes",
+            "dataType": "string"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "DimPeriodo",
+            "mode": "import",
+            "source": {
+              "type": "calculated",
+              "expression": "DimPeriodo = \nVAR Cal = CALENDAR(DATE(2023,1,1), DATE(2023,12,31))\nVAR FirstDays = FILTER(Cal, DAY([Date]) = 1)\nRETURN\nADDCOLUMNS(\n    FirstDays,\n    \"Periodo\", [Date],\n    \"Año\", YEAR([Date]),\n    \"MesNumero\", MONTH([Date]),\n    \"Mes\", FORMAT([Date], \"[$-es-ES]mmmm\")\n)"
+            }
+          }
+        ]
+      },
+      {
+        "name": "DimTipoGasto",
+        "columns": [
+          {
+            "name": "Tipo de gasto",
+            "dataType": "string"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "DimTipoGasto",
+            "mode": "import",
+            "source": {
+              "type": "calculated",
+              "expression": "DimTipoGasto = \nDISTINCT(\n    UNION(\n        SELECTCOLUMNS(presupuesto_col, \"Tipo de gasto\", presupuesto_col[Tipo de gasto]),\n        SELECTCOLUMNS(ejecucion, \"Tipo de gasto\", ejecucion[Tipo de gasto])\n    )\n)"
+            }
+          }
+        ]
+      },
+      {
+        "name": "DimEquipo",
+        "columns": [
+          {
+            "name": "Equipo",
+            "dataType": "string"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "DimEquipo",
+            "mode": "import",
+            "source": {
+              "type": "calculated",
+              "expression": "DimEquipo = \nDISTINCT(\n    UNION(\n        SELECTCOLUMNS(presupuesto_col, \"Equipo\", presupuesto_col[Equipo]),\n        SELECTCOLUMNS(ejecucion, \"Equipo\", ejecucion[Equipo])\n    )\n)"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Measures",
+        "measures": [
+          {
+            "name": "Monto Presupuestado",
+            "expression": ""
+          },
+          {
+            "name": "Monto Ejecutado",
+            "expression": ""
+          },
+          {
+            "name": "Variación",
+            "expression": ""
+          },
+          {
+            "name": "Variación %",
+            "expression": ""
+          },
+          {
+            "name": "Variación (Año)",
+            "expression": ""
+          },
+          {
+            "name": "Variación % (Año)",
+            "expression": ""
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "name": "DimPeriodo-presupuesto_col",
+        "fromTable": "presupuesto_col",
+        "fromColumn": "Periodo",
+        "toTable": "DimPeriodo",
+        "toColumn": "Periodo"
+      },
+      {
+        "name": "DimPeriodo-ejecucion",
+        "fromTable": "ejecucion",
+        "fromColumn": "Periodo",
+        "toTable": "DimPeriodo",
+        "toColumn": "Periodo"
+      },
+      {
+        "name": "DimTipoGasto-presupuesto_col",
+        "fromTable": "presupuesto_col",
+        "fromColumn": "Tipo de gasto",
+        "toTable": "DimTipoGasto",
+        "toColumn": "Tipo de gasto"
+      },
+      {
+        "name": "DimTipoGasto-ejecucion",
+        "fromTable": "ejecucion",
+        "fromColumn": "Tipo de gasto",
+        "toTable": "DimTipoGasto",
+        "toColumn": "Tipo de gasto"
+      },
+      {
+        "name": "DimEquipo-presupuesto_col",
+        "fromTable": "presupuesto_col",
+        "fromColumn": "Equipo",
+        "toTable": "DimEquipo",
+        "toColumn": "Equipo"
+      },
+      {
+        "name": "DimEquipo-ejecucion",
+        "fromTable": "ejecucion",
+        "fromColumn": "Equipo",
+        "toTable": "DimEquipo",
+        "toColumn": "Equipo"
+      }
+    ]
+  }
+}

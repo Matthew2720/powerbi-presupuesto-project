@@ -1,0 +1,7 @@
+DimEquipo = 
+DISTINCT(
+    UNION(
+        SELECTCOLUMNS(presupuesto_col, "Equipo", presupuesto_col[Equipo]),
+        SELECTCOLUMNS(ejecucion, "Equipo", ejecucion[Equipo])
+    )
+)

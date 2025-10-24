@@ -1,0 +1,7 @@
+DimTipoGasto = 
+DISTINCT(
+    UNION(
+        SELECTCOLUMNS(presupuesto_col, "Tipo de gasto", presupuesto_col[Tipo de gasto]),
+        SELECTCOLUMNS(ejecucion, "Tipo de gasto", ejecucion[Tipo de gasto])
+    )
+)
