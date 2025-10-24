@@ -1,0 +1,11 @@
+DimPeriodo = 
+VAR Cal = CALENDAR(DATE(2023,1,1), DATE(2023,12,31))
+VAR FirstDays = FILTER(Cal, DAY([Date]) = 1)
+RETURN
+ADDCOLUMNS(
+    FirstDays,
+    "Periodo", [Date],
+    "Año", YEAR([Date]),
+    "MesNumero", MONTH([Date]),
+    "Mes", FORMAT([Date], "[$-es-ES]mmmm")
+)

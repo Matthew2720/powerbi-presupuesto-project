@@ -1,0 +1,27 @@
+-- Medidas de Presupuesto vs Ejecutado
+
+Monto Presupuestado = 
+    SUM ( Presupuesto[Monto Presupuestado] )
+
+Monto Ejecutado = 
+    SUM ( Ejecucion[Monto Ejecutado] )
+
+Variación = 
+    [Monto Ejecutado] - [Monto Presupuestado]
+
+Variación % = 
+    DIVIDE([Variación], [Monto Presupuestado])
+
+-- Versión anual (ignora el filtro de mes para ver el año completo del contexto de año/equipo)
+
+Monto Presupuestado (Año) =
+    CALCULATE([Monto Presupuestado], ALL(DimPeriodo[Periodo]))
+
+Monto Ejecutado (Año) =
+    CALCULATE([Monto Ejecutado], ALL(DimPeriodo[Periodo]))
+
+Variación (Año) = 
+    [Monto Ejecutado (Año)] - [Monto Presupuestado (Año)]
+
+Variación % (Año) = 
+    DIVIDE( [Variación (Año)], [Monto Presupuestado (Año)] )
